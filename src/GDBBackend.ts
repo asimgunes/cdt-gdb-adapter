@@ -64,6 +64,7 @@ export class GDBBackend extends events.EventEmitter {
     protected gdbAsync = false;
     protected gdbNonStop = false;
     protected hardwareBreakpoint = false;
+    protected logger = logger;
 
     get varManager(): VarManager {
         return this.varMgr;
@@ -163,6 +164,10 @@ export class GDBBackend extends events.EventEmitter {
 
     public isNonStopMode() {
         return this.gdbNonStop;
+    }
+
+    public async getBreakpointOptions(_: mi.MIBreakpointLocation, initialOptions: mi.MIBreakpointInsertOptions): Promise<mi.MIBreakpointInsertOptions> {
+        return initialOptions;
     }
 
     public isUseHWBreakpoint() {
