@@ -1,4 +1,13 @@
 #!/usr/bin/env node
+/*********************************************************************
+ * Copyright (c) 2023 Smart Bee Software Solutions Ltd and others
+ * 
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ *********************************************************************/
 import * as process from 'process';
 import { logger } from '@vscode/debugadapter/lib/logger';
 import { GDBBackend } from '../../../GDBBackend';
@@ -31,8 +40,8 @@ class DynamicBreakpointOptionsGDBBackend extends GDBBackend {
         const hardware = hardwareBreakpointTrue
             ? true
             : hardwareBreakpointFalse
-            ? false
-            : initialOptions.hardware;
+                ? false
+                : initialOptions.hardware;
         return { ...initialOptions, hardware };
     }
 }
