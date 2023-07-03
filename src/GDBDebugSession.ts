@@ -615,17 +615,25 @@ export class GDBDebugSession extends LoggingDebugSession {
 
                 try {
                     const line = vsbp.line.toString();
-                    const options = await this.gdb.getBreakpointOptions({ 
-                        locationType: 'source',
-                        source: file,
-                        line
-                    }, {
-                        condition: vsbp.condition,
-                        temporary,
-                        ignoreCount,
-                        hardware: this.gdb.isUseHWBreakpoint()
-                    });
-                    const gdbbp = await mi.sendSourceBreakpointInsert(this.gdb, file, line, options);
+                    const options = await this.gdb.getBreakpointOptions(
+                        {
+                            locationType: 'source',
+                            source: file,
+                            line,
+                        },
+                        {
+                            condition: vsbp.condition,
+                            temporary,
+                            ignoreCount,
+                            hardware: this.gdb.isUseHWBreakpoint(),
+                        }
+                    );
+                    const gdbbp = await mi.sendSourceBreakpointInsert(
+                        this.gdb,
+                        file,
+                        line,
+                        options
+                    );
                     actual.push(createState(vsbp, gdbbp.bkpt));
                 } catch (err) {
                     actual.push({
@@ -738,16 +746,19 @@ export class GDBDebugSession extends LoggingDebugSession {
                 }
 
                 try {
-                    const options = await this.gdb.getBreakpointOptions({ 
-                        locationType: 'function',
-                        fn: bp.vsbp.name
-                    }, {
-                        hardware: this.gdb.isUseHWBreakpoint()
-                    });
+                    const options = await this.gdb.getBreakpointOptions(
+                        {
+                            locationType: 'function',
+                            fn: bp.vsbp.name,
+                        },
+                        {
+                            hardware: this.gdb.isUseHWBreakpoint(),
+                        }
+                    );
                     const gdbbp = await mi.sendFunctionBreakpointInsert(
                         this.gdb,
                         bp.vsbp.name,
-                        options,
+                        options
                     );
                     this.functionBreakpoints.push(gdbbp.bkpt.number);
                     actual.push(createActual(gdbbp.bkpt));
@@ -869,9 +880,9 @@ export class GDBDebugSession extends LoggingDebugSession {
         try {
             if (!this.isRunning) {
                 const result = await mi.sendThreadInfoRequest(this.gdb, {});
-                this.threads = result.threads.map((thread) =>
-                    this.convertThread(thread)
-                ).sort((a, b) => a.id - b.id);
+                this.threads = result.threads
+                    .map((thread) => this.convertThread(thread))
+                    .sort((a, b) => a.id - b.id);
             }
 
             response.body = {

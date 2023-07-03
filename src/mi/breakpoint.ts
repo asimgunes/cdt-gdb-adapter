@@ -60,7 +60,7 @@ export interface MIBreakpointInsertOptions {
 }
 
 export interface MIBreakpointLocation {
-    locationType?: "source" | "function";
+    locationType?: 'source' | 'function';
     source?: string;
     line?: string;
     fn?: string;
@@ -164,7 +164,6 @@ export async function sendFunctionBreakpointInsert(
     const location = await functionBreakpointLocation(gdb, fn, true);
     return sendBreakpointInsert(gdb, location, options);
 }
-
 
 export async function sendSourceBreakpointInsert(
     gdb: GDBBackend,

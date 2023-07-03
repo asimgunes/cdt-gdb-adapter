@@ -10,23 +10,20 @@
 import * as path from 'path';
 import { expect } from 'chai';
 import { CdtDebugClient } from './debugClient';
-import {
-    standardBeforeEach,
-    testProgramsDir,
-    fillDefaults,
-} from './utils';
+import { standardBeforeEach, testProgramsDir, fillDefaults } from './utils';
 
 // This mock adapter is overriding the getBreakpointOptions method
-const adapter = "integration-tests/mocks/debugAdapters/dynamicBreakpointOptions.js";
-const argHardwareBreakpointTrue = "--hardware-breakpoint-true";
-const argHardwareBreakpointFalse = "--hardware-breakpoint-false";
-const argThrowError = "--throw-error";
+const adapter =
+    'integration-tests/mocks/debugAdapters/dynamicBreakpointOptions.js';
+const argHardwareBreakpointTrue = '--hardware-breakpoint-true';
+const argHardwareBreakpointFalse = '--hardware-breakpoint-false';
+const argThrowError = '--throw-error';
 
-describe('Overriding breakpoint options with hardware:false', async () => {
+describe('Overriding breakpoint option hardware to false', async () => {
     let dc: CdtDebugClient;
 
     beforeEach(async function() {
-        // Overriding breakpoint options with hardware:false
+        // Overriding breakpoint option hardware to false
         dc = await standardBeforeEach(adapter, [argHardwareBreakpointFalse]);
         await dc.launchRequest(
             fillDefaults(this.currentTest, {
@@ -69,11 +66,11 @@ describe('Overriding breakpoint options with hardware:false', async () => {
     });
 });
 
-describe('Overriding breakpoint options with hardware:true', async () => {
+describe('Overriding breakpoint option hardware to true', async () => {
     let dc: CdtDebugClient;
 
     beforeEach(async function() {
-        // Overriding breakpoint options with hardware:true
+        // Overriding breakpoint option hardware to true
         dc = await standardBeforeEach(adapter, [argHardwareBreakpointTrue]);
         await dc.launchRequest(
             fillDefaults(this.currentTest, {
@@ -154,4 +151,3 @@ describe('Overriding breakpoint options by throwing error', async () => {
         await dc.waitForEvent('output');
     });
 });
-
