@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*********************************************************************
  * Copyright (c) 2023 Renesas Electronics Corporation and others
- * 
+ *
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
  * which is available at https://www.eclipse.org/legal/epl-2.0/
@@ -40,8 +40,8 @@ class DynamicBreakpointOptionsGDBBackend extends GDBBackend {
         const hardware = hardwareBreakpointTrue
             ? true
             : hardwareBreakpointFalse
-                ? false
-                : initialOptions.hardware;
+            ? false
+            : initialOptions.hardware;
         return { ...initialOptions, hardware };
     }
 }
