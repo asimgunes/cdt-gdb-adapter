@@ -16,6 +16,8 @@ import {
     fillDefaults,
     getCharStringVariableValue,
     getScopes,
+    hardwareBreakpoint,
+    isRemoteTest,
     standardBeforeEach,
     testProgramsDir,
     verifyCharStringVariable,
@@ -24,9 +26,6 @@ import { platform } from 'os';
 
 const debugAdapter = 'debugAdapter.js';
 const debugTargetAdapter = 'debugTargetAdapter.js';
-
-export const isHwBreakpointOn: boolean =
-    process.argv.indexOf('--test-hw-breakpoint-on') !== -1;
 
 describe.only('launch with environment', function () {
     let dc: CdtDebugClient | undefined;
@@ -102,7 +101,7 @@ describe.only('launch with environment', function () {
     });
 
     it('sets environment variables passed to the process', async function () {
-        if (isHwBreakpointOn) {
+        if (hardwareBreakpoint) {
             this.skip();
         }
         const environment = {
@@ -125,7 +124,7 @@ describe.only('launch with environment', function () {
     });
 
     it('not sets target environment variables passed to the process when debugAdapter used', async function () {
-        if (isHwBreakpointOn) {
+        if (hardwareBreakpoint || (platform() === 'win32' && !isRemoteTest)) {
             this.skip();
         }
         const environment = {
@@ -153,7 +152,7 @@ describe.only('launch with environment', function () {
     });
 
     it('sets target environment variables with debugTargetAdapter', async function () {
-        if (isHwBreakpointOn) {
+        if (hardwareBreakpoint) {
             this.skip();
         }
         const environment = {
@@ -197,7 +196,7 @@ describe.only('launch with environment', function () {
     });
 
     it('unsets when target environment variables sets null with debugTargetAdapter', async function () {
-        if (isHwBreakpointOn) {
+        if (hardwareBreakpoint) {
             this.skip();
         }
         const environment = {
@@ -235,7 +234,7 @@ describe.only('launch with environment', function () {
     });
 
     it('ensures that path is not null', async function () {
-        if (isHwBreakpointOn) {
+        if (hardwareBreakpoint) {
             this.skip();
         }
         const results = await runForEnvironmentTest(undefined, this.test);
@@ -247,7 +246,7 @@ describe.only('launch with environment', function () {
     });
 
     it('ensures that new entries could be injected to path', async function () {
-        if (isHwBreakpointOn) {
+        if (hardwareBreakpoint) {
             this.skip();
         }
         const pathToAppend = __dirname;
@@ -272,7 +271,9 @@ describe.only('launch with environment', function () {
         if (platform() === 'win32' || true) {
             // Win32 test platform auto inject another folder to the front of the list.
             // So we have a little bit different test here.
-            const entriesInPath = valueOfPath!.split(path.delimiter).map(i => i.replace(/\\\\/g, '\\'));
+            const entriesInPath = valueOfPath!
+                .split(path.delimiter)
+                .map((i) => i.replace(/\\\\/g, '\\'));
             expect(
                 entriesInPath,
                 'Path does not include appended folder'
@@ -284,7 +285,7 @@ describe.only('launch with environment', function () {
     });
 
     it('check setting null will delete the variable', async function () {
-        if (platform() === 'win32' || isHwBreakpointOn) {
+        if (platform() === 'win32' || hardwareBreakpoint) {
             this.skip();
         }
         const environment = {
