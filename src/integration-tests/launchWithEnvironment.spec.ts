@@ -29,7 +29,7 @@ export const isHwBreakpointOn: boolean =
     process.argv.indexOf('--test-hw-breakpoint-on') !== -1;
 
 describe.only('launch with environment', function () {
-    let dc: CdtDebugClient;
+    let dc: CdtDebugClient | undefined;
     const runForEnvironmentTest = async (
         adapter?: string,
         test?: Mocha.Runnable | undefined,
@@ -98,6 +98,7 @@ describe.only('launch with environment', function () {
     afterEach(async function () {
         // dc could be undefined if test is skipped.
         await dc?.stop();
+        dc = undefined;
     });
 
     it('sets environment variables passed to the process', async function () {
