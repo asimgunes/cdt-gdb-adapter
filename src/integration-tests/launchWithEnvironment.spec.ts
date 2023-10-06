@@ -28,7 +28,7 @@ const debugTargetAdapter = 'debugTargetAdapter.js';
 export const isHwBreakpointOn: boolean =
     process.argv.indexOf('--test-hw-breakpoint-on') !== -1;
 
-describe('launch with environment', function () {
+describe.only('launch with environment', function () {
     let dc: CdtDebugClient;
     const runForEnvironmentTest = async (
         adapter?: string,
@@ -254,6 +254,7 @@ describe('launch with environment', function () {
         const environment = {
             PATH: `${pathToAppend}${path.delimiter}${currentPathValue}`,
         };
+        console.log('process.env', process.env, environment );
         const results = await runForEnvironmentTest(
             undefined,
             this.test,
@@ -264,6 +265,8 @@ describe('launch with environment', function () {
             results.VARPATH.value,
             `The value of Path is wrong`
         ).not.to.equal('0x00');
+
+        console.log('results.VARPATH.value', results.VARPATH.value );
 
         const valueOfPath = getCharStringVariableValue(results.VARPATH);
         const firstEntry = valueOfPath?.split(path.delimiter).shift();
