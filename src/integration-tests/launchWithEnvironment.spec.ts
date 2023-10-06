@@ -254,7 +254,6 @@ describe.only('launch with environment', function () {
         const environment = {
             PATH: `${pathToAppend}${path.delimiter}${currentPathValue}`,
         };
-        console.log('process.env', process.env, environment );
         const results = await runForEnvironmentTest(
             undefined,
             this.test,
@@ -266,11 +265,20 @@ describe.only('launch with environment', function () {
             `The value of Path is wrong`
         ).not.to.equal('0x00');
 
-        console.log('results.VARPATH.value', results.VARPATH.value );
+        console.log('results.VARPATH.value', results.VARPATH.value);
 
         const valueOfPath = getCharStringVariableValue(results.VARPATH);
-        const firstEntry = valueOfPath?.split(path.delimiter).shift();
-        expect(firstEntry).to.equals(pathToAppend);
+        const entriesInPath = valueOfPath!.split(path.delimiter);
+        if (platform() === 'win32') {
+            // Win32 test platform auto inject another folder to the front of the list.
+            // So we have a little bit different test here.
+            expect(
+                entriesInPath,
+                'Path does not include appended folder'
+            ).to.includes(pathToAppend);
+        } else {
+            expect(entriesInPath[0]).to.equals(pathToAppend);
+        }
     });
 
     it('check setting null will delete the variable', async function () {
@@ -285,6 +293,7 @@ describe.only('launch with environment', function () {
             this.test,
             environment
         );
+        console.log('results.VARPATH.value in delete', results.VARPATH.value);
 
         verifyCharStringVariable(results.VARPATH, 'char *', null);
     });
