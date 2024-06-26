@@ -7,8 +7,6 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import * as fs from 'fs';
-import { DebugSession, logger } from '@vscode/debugadapter';
 import {
     LaunchRequestArguments,
     AttachRequestArguments,
@@ -16,57 +14,11 @@ import {
 import { GDBDebugSessionBase } from '../gdb/GDBDebugSessionBase';
 import { GDBBackendFactory } from './factories/GDBBackendFactory';
 import { IGDBBackendFactory } from '../types/gdb';
+import { GDBDebugSessionLauncher } from './GDBDebugSessionLauncher';
 
 export class GDBDebugSession extends GDBDebugSessionBase {
-    /**
-     * Initial (aka default) configuration for launch/attach request
-     * typically supplied with the --config command line argument.
-     */
-    protected static defaultRequestArguments?: any;
-
-    /**
-     * Frozen configuration for launch/attach request
-     * typically supplied with the --config-frozen command line argument.
-     */
-    protected static frozenRequestArguments?: { request?: string };
     constructor(backendFactory?: IGDBBackendFactory) {
         super(backendFactory || new GDBBackendFactory());
-        this.logger = logger;
-    }
-
-    /**
-     * Main entry point
-     */
-    public static run(debugSession: typeof DebugSession) {
-        GDBDebugSession.processArgv(process.argv.slice(2));
-        DebugSession.run(debugSession);
-    }
-
-    /**
-     * Parse an optional config file which is a JSON string of launch/attach request arguments.
-     * The config can be a response file by starting with an @.
-     */
-    public static processArgv(args: string[]) {
-        args.forEach(function (val, _index, _array) {
-            const configMatch = /^--config(-frozen)?=(.*)$/.exec(val);
-            if (configMatch) {
-                let configJson;
-                const configStr = configMatch[2];
-                if (configStr.startsWith('@')) {
-                    const configFile = configStr.slice(1);
-                    configJson = JSON.parse(
-                        fs.readFileSync(configFile).toString('utf8')
-                    );
-                } else {
-                    configJson = JSON.parse(configStr);
-                }
-                if (configMatch[1]) {
-                    GDBDebugSession.frozenRequestArguments = configJson;
-                } else {
-                    GDBDebugSession.defaultRequestArguments = configJson;
-                }
-            }
-        });
     }
 
     /**
@@ -79,18 +31,6 @@ export class GDBDebugSession extends GDBDebugSessionBase {
         request: 'launch' | 'attach',
         args: LaunchRequestArguments | AttachRequestArguments
     ): ['launch' | 'attach', LaunchRequestArguments | AttachRequestArguments] {
-        const frozenRequest = GDBDebugSession.frozenRequestArguments?.request;
-        if (frozenRequest === 'launch' || frozenRequest === 'attach') {
-            request = frozenRequest;
-        }
-
-        return [
-            request,
-            {
-                ...GDBDebugSession.defaultRequestArguments,
-                ...args,
-                ...GDBDebugSession.frozenRequestArguments,
-            },
-        ];
+        return GDBDebugSessionLauncher.applyRequestArguments(request, args);
     }
 }

@@ -7,7 +7,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0
  *********************************************************************/
-import { DebugSession, logger } from '@vscode/debugadapter';
+import { logger } from '@vscode/debugadapter';
 import { GDBDebugSessionBase } from '../gdb/GDBDebugSessionBase';
 import { GDBBackendFactory } from './factories/GDBBackendFactory';
 import { IGDBBackendFactory } from '../types/gdb';
@@ -16,12 +16,5 @@ export class GDBDebugSession extends GDBDebugSessionBase {
     constructor(backendFactory?: IGDBBackendFactory) {
         super(backendFactory || new GDBBackendFactory());
         this.logger = logger;
-    }
-
-    /**
-     * Main entry point
-     */
-    public static run(debugSession: typeof DebugSession) {
-        DebugSession.run(debugSession);
     }
 }

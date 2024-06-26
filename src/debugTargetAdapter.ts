@@ -11,6 +11,7 @@
  *********************************************************************/
 import { logger } from '@vscode/debugadapter/lib/logger';
 import { GDBTargetDebugSession } from './desktop/GDBTargetDebugSession';
+import { GDBDebugSessionLauncher } from './desktop/GDBDebugSessionLauncher';
 
 process.on('uncaughtException', (err: any) => {
     logger.error(JSON.stringify(err));
@@ -22,4 +23,4 @@ class GDBTargetDebugSessionToRun extends GDBTargetDebugSession {
     }
 }
 
-GDBTargetDebugSessionToRun.run(GDBTargetDebugSessionToRun);
+GDBDebugSessionLauncher.run(GDBTargetDebugSessionToRun);
