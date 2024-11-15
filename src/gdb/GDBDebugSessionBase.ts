@@ -1343,109 +1343,161 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response: DebugProtocol.DisassembleResponse,
         args: CDTDisassembleArguments
     ) {
-        try {
+        const getDisassembledInstruction = (
+            asmInstruction: mi.MIDataDisassembleAsmInsn
+        ): DebugProtocol.DisassembledInstruction => {
+            let funcAndOffset: string | undefined;
+            if (asmInstruction['func-name'] && asmInstruction.offset) {
+                funcAndOffset = `${asmInstruction['func-name']}+${asmInstruction.offset}`;
+            } else if (asmInstruction['func-name']) {
+                funcAndOffset = asmInstruction['func-name'];
+            } else {
+                funcAndOffset = undefined;
+            }
+            return {
+                address: asmInstruction.address,
+                instructionBytes: asmInstruction.opcodes,
+                instruction: asmInstruction.inst,
+                symbol: funcAndOffset,
+            } as DebugProtocol.DisassembledInstruction;
+        };
+
+        const getInstructions = async (
+            memoryReference: string,
+            len: number
+        ) => {
+            const list: DebugProtocol.DisassembledInstruction[] = [];
             const meanSizeOfInstruction = 4;
-            let startOffset = 0;
-            let lastStartOffset = -1;
-            const instructions: DebugProtocol.DisassembledInstruction[] = [];
-            let oneIterationOnly = false;
-            outer_loop: while (
-                instructions.length < args.instructionCount &&
-                !oneIterationOnly
-            ) {
-                if (startOffset === lastStartOffset) {
-                    // We have stopped getting new instructions, give up
-                    break outer_loop;
+            const absLength = Math.abs(len);
+
+            const result =
+                len < 0
+                    ? await mi.sendDataDisassemble(
+                          this.gdb,
+                          `(${args.memoryReference})-${
+                              absLength * meanSizeOfInstruction
+                          }`,
+                          `(${memoryReference})+0`
+                      )
+                    : await mi.sendDataDisassemble(
+                          this.gdb,
+                          `(${memoryReference})+0`,
+                          `(${args.memoryReference})+${
+                              absLength * meanSizeOfInstruction
+                          }`
+                      );
+
+            for (const asmInsn of result.asm_insns) {
+                const line: number | undefined = asmInsn.line
+                    ? parseInt(asmInsn.line, 10)
+                    : undefined;
+                const location = {
+                    name: asmInsn.file,
+                    path: asmInsn.fullname,
+                } as DebugProtocol.Source;
+                for (const asmLine of asmInsn.line_asm_insn) {
+                    list.push({
+                        ...getDisassembledInstruction(asmLine),
+                        location,
+                        line,
+                    });
                 }
-                lastStartOffset = startOffset;
+            }
 
-                const fetchSize =
-                    (args.instructionCount - instructions.length) *
-                    meanSizeOfInstruction;
+            if (len < 0) {
+                // Remove the heading, if necessary
+                if (absLength < list.length) {
+                    list.splice(0, list.length - absLength);
+                }
 
-                // args.memoryReference is an arbitrary expression, so let GDB do the
-                // math on resolving value rather than doing the addition in the adapter
-                try {
-                    const stepStartAddress = `(${args.memoryReference})+${startOffset}`;
-                    let stepEndAddress = `(${args.memoryReference})+${startOffset}+${fetchSize}`;
-                    if (args.endMemoryReference && instructions.length === 0) {
-                        // On the first call, if we have an end memory address use it instead of
-                        // the approx size
-                        stepEndAddress = args.endMemoryReference;
-                        oneIterationOnly = true;
-                    }
-                    const result = await mi.sendDataDisassemble(
-                        this.gdb,
-                        stepStartAddress,
-                        stepEndAddress
+                // Add empty instructions, if necessary
+                if (list.length < absLength) {
+                    const startAddress = list[0].address;
+                    const filling = getEmptyInstructions(
+                        startAddress,
+                        absLength - list.length,
+                        -2
                     );
-                    for (const asmInsn of result.asm_insns) {
-                        const line: number | undefined = asmInsn.line
-                            ? parseInt(asmInsn.line, 10)
-                            : undefined;
-                        const source = {
-                            name: asmInsn.file,
-                            path: asmInsn.fullname,
-                        } as DebugProtocol.Source;
-                        for (const asmLine of asmInsn.line_asm_insn) {
-                            let funcAndOffset: string | undefined;
-                            if (asmLine['func-name'] && asmLine.offset) {
-                                funcAndOffset = `${asmLine['func-name']}+${asmLine.offset}`;
-                            } else if (asmLine['func-name']) {
-                                funcAndOffset = asmLine['func-name'];
-                            } else {
-                                funcAndOffset = undefined;
-                            }
-                            const disInsn = {
-                                address: asmLine.address,
-                                instructionBytes: asmLine.opcodes,
-                                instruction: asmLine.inst,
-                                symbol: funcAndOffset,
-                                location: source,
-                                line,
-                            } as DebugProtocol.DisassembledInstruction;
-                            instructions.push(disInsn);
-                            if (instructions.length === args.instructionCount) {
-                                break outer_loop;
-                            }
+                    list.unshift(...filling);
+                }
+            } else {
+                // Remove the tail, if necessary
+                if (absLength < list.length) {
+                    list.splice(absLength, list.length - absLength);
+                }
 
-                            const bytes = asmLine.opcodes.replace(/\s/g, '');
-                            startOffset += bytes.length;
-                        }
-                    }
-                } catch (err) {
-                    // Failed to read instruction -- what best to do here?
-                    // in other words, whose responsibility (adapter or client)
-                    // to reissue reads in smaller chunks to find good memory
-                    while (instructions.length < args.instructionCount) {
-                        const badDisInsn = {
-                            // TODO this should start at byte after last retrieved address
-                            address: `0x${startOffset.toString(16)}`,
-                            instruction:
-                                err instanceof Error
-                                    ? err.message
-                                    : String(err),
-                        } as DebugProtocol.DisassembledInstruction;
-                        instructions.push(badDisInsn);
-                        startOffset += 2;
-                    }
-                    break outer_loop;
+                // Add empty instructions, if necessary
+                if (list.length < absLength) {
+                    const startAddress = list[list.length - 1].address;
+                    const filling = getEmptyInstructions(
+                        startAddress,
+                        absLength - list.length,
+                        2
+                    );
+                    list.push(...filling);
                 }
             }
+            return list;
+        };
 
-            if (!args.endMemoryReference) {
-                while (instructions.length < args.instructionCount) {
-                    const badDisInsn = {
-                        // TODO this should start at byte after last retrieved address
-                        address: `0x${startOffset.toString(16)}`,
-                        instruction: 'failed to retrieve instruction',
-                    } as DebugProtocol.DisassembledInstruction;
-                    instructions.push(badDisInsn);
-                    startOffset += 2;
+        const getEmptyInstructions = (
+            startAddress: string,
+            count: number,
+            step: number
+        ) => {
+            let address = parseInt(startAddress, 16);
+            const addressLength = startAddress.length - 2;
+
+            const list: DebugProtocol.DisassembledInstruction[] = [];
+            for (let ix = 0; ix < count; ix++) {
+                address += step;
+                const badDisInsn = {
+                    address: `0x${address
+                        .toString(16)
+                        .padStart(addressLength, '0')}`,
+                    instruction: 'failed to retrieve instruction',
+                    presentationHint: 'invalid',
+                } as DebugProtocol.DisassembledInstruction;
+                if (step < 0) {
+                    list.unshift(badDisInsn);
+                } else {
+                    list.push(badDisInsn);
                 }
             }
+            return list;
+        };
 
-            response.body = { instructions };
+        try {
+            const instructionStartOffset = args.instructionOffset ?? 0;
+            const instructionEndOffset =
+                args.instructionCount + instructionStartOffset;
+            const instructions: DebugProtocol.DisassembledInstruction[] = [];
+
+            if (instructionStartOffset < 0) {
+                // Getting lower memory area
+                const list = await getInstructions(
+                    args.memoryReference,
+                    instructionStartOffset
+                );
+
+                // Add them to instruction list
+                instructions.push(...list);
+            }
+
+            if (instructionEndOffset > 0) {
+                // Getting higher memory area
+                const list = await getInstructions(
+                    args.memoryReference,
+                    instructionEndOffset
+                );
+
+                // Add them to instruction list
+                instructions.push(...list);
+            }
+
+            response.body = {
+                instructions,
+            };
             this.sendResponse(response);
         } catch (err) {
             this.sendErrorResponse(
