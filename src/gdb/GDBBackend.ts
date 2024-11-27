@@ -179,13 +179,15 @@ export class GDBBackend extends events.EventEmitter implements IGDBBackend {
                             break;
                         case 'error':
                             failure.message = resultData.msg;
-                            reject(failure);
+                            logger.error(`GDB error: ${failure.message}`);
+                            reject(resultData);
                             break;
                         default:
                             failure.message = `Unknown response ${resultClass}: ${JSON.stringify(
                                 resultData
                             )}`;
-                            reject(failure);
+                            logger.error(`GDB error: ${failure.message}`);
+                            reject(resultData);
                     }
                 });
                 this.out.write(`${token}${command}\n`);

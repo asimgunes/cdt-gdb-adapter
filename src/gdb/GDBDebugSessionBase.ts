@@ -964,12 +964,24 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response.body = {
             variables,
         };
+        this.sendEvent(
+            new OutputEvent(
+                `[Variables] [Starting] ${JSON.stringify(args)}\n`,
+                'VariablesLog'
+            )
+        );
         try {
             const ref = this.variableHandles.get(args.variablesReference);
             if (!ref) {
                 this.sendResponse(response);
                 return;
             }
+            this.sendEvent(
+                new OutputEvent(
+                    `[Variables] [REF] ${JSON.stringify(ref)}\n`,
+                    'VariablesLog'
+                )
+            );
             if (ref.type === 'registers') {
                 response.body.variables =
                     await this.handleVariableRequestRegister(ref);
@@ -1859,6 +1871,18 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
     protected async handleVariableRequestObject(
         ref: ObjectVariableReference
     ): Promise<DebugProtocol.Variable[]> {
+        this.sendEvent(
+            new OutputEvent(
+                `[Variables] [handleVariableRequestObject] start\n`,
+                'VariablesLog'
+            )
+        );
+        this.sendEvent(
+            new OutputEvent(
+                `[Variables] [handleVariableRequestObject] initialize variables array and dereference the frame handle\n`,
+                'VariablesLog'
+            )
+        );
         // initialize variables array and dereference the frame handle
         const variables: DebugProtocol.Variable[] = [];
         const frame = this.frameHandles.get(ref.frameHandle);
@@ -1867,6 +1891,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         }
 
         // fetch stack depth to obtain frameId/threadId/depth tuple
+        this.sendEvent(
+            new OutputEvent(
+                `[Variables] [handleVariableRequestObject] fetch stack depth to obtain frameId/threadId/depth tuple\n`,
+                'VariablesLog'
+            )
+        );
         const stackDepth = await mi.sendStackInfoDepth(this.gdb, {
             maxDepth: 100,
         });
@@ -1876,6 +1906,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         let parentVarname = ref.varobjName;
 
         // if a varobj exists, use the varname stored there
+        this.sendEvent(
+            new OutputEvent(
+                `[Variables] [handleVariableRequestObject] if a varobj exists, use the varname stored there\n`,
+                'VariablesLog'
+            )
+        );
         const varobj = this.gdb.varManager.getVarByName(
             frame.frameId,
             frame.threadId,
@@ -1883,6 +1919,14 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
             ref.varobjName
         );
         if (varobj) {
+            this.sendEvent(
+                new OutputEvent(
+                    `[Variables] [handleVariableRequestObject] [varobj] ${JSON.stringify(
+                        varobj
+                    )}\n`,
+                    'VariablesLog'
+                )
+            );
             children = await mi.sendVarListChildren(this.gdb, {
                 name: varobj.varname,
                 printValues: mi.MIVarPrintValues.all,
@@ -1895,16 +1939,58 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 printValues: mi.MIVarPrintValues.all,
             });
         }
+
+        // for (const objChild of children.children) {
+        //     variables.push({
+        //         name: objChild.exp,
+        //         evaluateName: `${varobj?.varname ?? ref.varobjName}.${
+        //             objChild.exp
+        //         }`,
+        //         value: objChild.value ? objChild.value : objChild.type,
+        //         type: objChild.type,
+        //         variablesReference:
+        //             parseInt(objChild.numchild, 10) > 0
+        //                 ? this.variableHandles.create({
+        //                       type: 'object',
+        //                       frameHandle: ref.frameHandle,
+        //                       varobjName: `${
+        //                           varobj?.varname ?? ref.varobjName
+        //                       }.${objChild.exp}`,
+        //                   })
+        //                 : 0,
+        //     });
+        // }
+
+        // return Promise.resolve(variables);
+
         // Grab the full path of parent.
+        this.sendEvent(
+            new OutputEvent(
+                `[Variables] [handleVariableRequestObject] Grab the full path of parent\n`,
+                'VariablesLog'
+            )
+        );
         const topLevelPathExpression =
             varobj?.expression ??
             (await this.getFullPathExpression(parentVarname));
 
         // iterate through the children
+        this.sendEvent(
+            new OutputEvent(
+                `[Variables] [handleVariableRequestObject] iterate through the children\n`,
+                'VariablesLog'
+            )
+        );
         for (const child of children.children) {
             // check if we're dealing with a C++ object. If we are, we need to fetch the grandchildren instead.
             const isClass = this.isChildOfClass(child);
             if (isClass) {
+                this.sendEvent(
+                    new OutputEvent(
+                        `[Variables] [handleVariableRequestObject] this is c++ object\n`,
+                        'VariablesLog'
+                    )
+                );
                 const name = `${parentVarname}.${child.exp}`;
                 const objChildren = await mi.sendVarListChildren(this.gdb, {
                     name,
@@ -1931,6 +2017,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 }
             } else {
                 // check if we're dealing with an array
+                this.sendEvent(
+                    new OutputEvent(
+                        `[Variables] [handleVariableRequestObject] this is not a c++ object\n`,
+                        'VariablesLog'
+                    )
+                );
                 let name = `${ref.varobjName}.${child.exp}`;
                 let varobjName = name;
                 let value = child.value ? child.value : child.type;
@@ -1947,6 +2039,12 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                 if (isArrayParent || isArrayChild) {
                     // can't use a relative varname (eg. var1.a.b.c) to create/update a new var so fetch and track these
                     // vars by evaluating their path expression from GDB
+                    this.sendEvent(
+                        new OutputEvent(
+                            `[Variables] [handleVariableRequestObject] this is not a c++ object\n`,
+                            'VariablesLog'
+                        )
+                    );
                     const fullPath = await this.getFullPathExpression(
                         child.name
                     );
@@ -1956,6 +2054,16 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                         frame.threadId,
                         depth,
                         fullPath
+                    );
+                    this.sendEvent(
+                        new OutputEvent(
+                            `[Variables] [handleVariableRequestObject] arrObj: ${JSON.stringify(
+                                { isArrayParent, isArrayChild }
+                            )} | ${JSON.stringify(fullPath)} | ${JSON.stringify(
+                                arrobj
+                            )}\n`,
+                            'VariablesLog'
+                        )
                     );
                     if (!arrobj) {
                         const varCreateResponse = await mi.sendVarCreate(
