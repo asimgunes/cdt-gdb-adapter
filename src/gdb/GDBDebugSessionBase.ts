@@ -216,6 +216,18 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
         response.body.supportsReadMemoryRequest = true;
         response.body.supportsWriteMemoryRequest = true;
         response.body.supportsSteppingGranularity = true;
+        response.body.breakpointModes = [
+            {
+                label: 'Hardware Breakpoint',
+                mode: 'hardware',
+                appliesTo: ['source'],
+            },
+            {
+                label: 'Software Breakpoint',
+                mode: 'software',
+                appliesTo: ['source'],
+            },
+        ];
         this.sendResponse(response);
     }
 
@@ -438,11 +450,21 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                     const vsbpCond = vsbp.condition || undefined;
                     const gdbbpCond = gdbbp.cond || undefined;
 
+                    // If mode is not defined, ignore it
+                    const vsbpIsBreakpointTypeHardware = vsbp.mode
+                        ? vsbp.mode === 'hardware'
+                        : undefined;
+                    const gdbbpIsBreakpointTypeHardware =
+                        gdbbp.type === 'hw breakpoint';
+
                     // Check with original-location so that relocated breakpoints are properly matched
                     const gdbOriginalLocation = `${gdbOriginalLocationPrefix}${vsbp.line}`;
                     return !!(
                         gdbbp['original-location'] === gdbOriginalLocation &&
-                        vsbpCond === gdbbpCond
+                        vsbpCond === gdbbpCond &&
+                        (vsbpIsBreakpointTypeHardware === undefined ||
+                            vsbpIsBreakpointTypeHardware ===
+                                gdbbpIsBreakpointTypeHardware)
                     );
                 }
             );
@@ -526,7 +548,10 @@ export abstract class GDBDebugSessionBase extends LoggingDebugSession {
                             condition: vsbp.condition,
                             temporary,
                             ignoreCount,
-                            hardware: this.gdb.isUseHWBreakpoint(),
+                            mode: vsbp.mode,
+                            hardware: vsbp.mode
+                                ? vsbp.mode === 'hardware'
+                                : this.gdb.isUseHWBreakpoint(),
                         }
                     );
                     const gdbbp = await mi.sendSourceBreakpointInsert(
