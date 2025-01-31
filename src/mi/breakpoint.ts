@@ -51,6 +51,7 @@ export interface MIBreakListResponse extends MIResponse {
 
 export interface MIBreakpointInsertOptions {
     temporary?: boolean;
+    mode?: string;
     hardware?: boolean;
     pending?: boolean;
     disabled?: boolean;
